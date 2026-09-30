@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import { attachTiltGaze } from './src/web/tilt.js';
+const doc=Object.assign(new EventTarget(),{hidden:false}), motion=Object.assign(new EventTarget(),{matches:false}), screenRef={orientation:{angle:0}};
+const events=new Map(), looks=[];let starts=0,stops=0;
+const sensor={beta:1,gamma:.1,start(opts,cb){starts++;assert.equal(opts.need_absolute,false);cb(true)},stop(){stops++}};
+const tg={DeviceOrientation:sensor,isVersionAtLeast:()=>true,isActive:true,onEvent:(k,f)=>events.set(k,f),offEvent:k=>events.delete(k)};
+const cleanup=attachTiltGaze({look:(...v)=>looks.push(v)},tg,{doc,motion,screenRef});
+const update=()=>events.get('deviceOrientationChanged')();
+update();assert.deepEqual(looks.at(-1).slice(0,2),[0,0]);sensor.gamma+=.4;update();assert(looks.at(-1)[0]>0);
+for(let i=0;i<50;i++)update();assert(looks.at(-1)[0]<=.75);
+sensor.beta=NaN;const count=looks.length;update();assert.equal(looks.length,count);sensor.beta=1;
+doc.hidden=true;doc.dispatchEvent(new Event('visibilitychange'));assert.equal(stops,1);
+doc.hidden=false;doc.dispatchEvent(new Event('visibilitychange'));assert.equal(starts,2);update();assert.equal(looks.at(-1)[0],0);
+screenRef.orientation.angle=90;update();sensor.beta+=.3;update();assert(looks.at(-1)[0]>0);
+motion.matches=true;motion.dispatchEvent(new Event('change'));assert.equal(stops,2);
+cleanup();assert.equal(events.size,0);assert.doesNotThrow(()=>attachTiltGaze({},null,{doc,motion,screenRef})());
+console.log('PASS: calibration, smoothing, bounds, rotation, invalid data, pause/resume, reduced motion, cleanup, unsupported');

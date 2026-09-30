@@ -1,0 +1,19 @@
+{
+  "name": "friday-telegram-miniapp",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "bun build src/web/face.js --target=browser --minify --outfile src/web/face.bundle.js.txt && bun build src/server.ts --compile --target=bun-linux-x64 --outfile dist/friday-miniapp",
+    "check": "bunx tsc --noEmit && node test-tilt.mjs && node test-followup-retention.mjs && node test-responsive-merged.mjs",
+    "connector": "bun run src/connector.ts",
+    "start": "bun run src/server.ts"
+  },
+  "dependencies": {
+    "@bwnd/bbot": "0.5.0",
+    "@openclaw/gateway-client": "2026.9.4"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "latest"
+  }
+}
