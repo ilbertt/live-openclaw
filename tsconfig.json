@@ -1,12 +1,4 @@
 {
-  "compilerOptions": {
-    "target": "ES2023",
-    "module": "Preserve",
-    "moduleResolution": "bundler",
-    "strict": true,
-    "skipLibCheck": true,
-    "noEmit": true,
-    "types": ["bun"]
-  },
-  "include": ["src/**/*.ts"]
+  "extends": "./tsconfig.base.json",
+  "include": ["scripts/**/*.ts"]
 }

@@ -1,92 +1,103 @@
-# Friday Telegram Mini App
+# Live OpenClaw
 
-Source snapshot: 30 September 2026. A Bun-powered Telegram Mini App for live voice with an OpenClaw agent. Includes the public relay, local outbound connector, UI, bbot face, fading captions, tilt-driven gaze, and the version-specific OpenClaw patch history.
-
-## Architecture
+A private Telegram Mini App for live voice with an OpenClaw agent. Refactored from the Friday snapshot of 30 September 2026 using the workspace layout and layering of [telegram-bot-starter](https://github.com/ilbertt/telegram-bot-starter) at `0520ace`.
 
 ```text
-Telegram Mini App -- audio/WebRTC --> OpenAI Live
-        |
-        +-- authenticated WSS --> Bun relay on nibrun
-                                      ^
-                                      | outbound WSS
-                               local connector
-                                      |
-                               local OpenClaw Gateway
+Telegram Mini App ── audio/WebRTC ── OpenAI Live
+       │
+       └── authenticated WSS ── public Bun relay
+                                    ▲
+                                    │ outbound WSS
+                             local connector ── OpenClaw Gateway
 ```
 
-The relay validates Telegram's signed identity and allows a single configured user. The connector allows only the Talk catalog/create/close/steer methods plus the scoped WebRTC SDP exchange. It currently requests operator.read, operator.talk and operator.write for delegated agent work.
+The relay verifies Telegram's Ed25519 signature, launch age, and allowed user. The connector forwards only the four Talk RPC methods and SDP offers within the Gateway's `/plugins/openai/` subtree. Audio travels over WebRTC; orientation stays on the phone.
 
-The UI uses @bwnd/bbot 0.5.0, with orange skin, dark eyes and no mouth. Captions show eight words, hold for 2.4 seconds, then fade over 650ms. Telegram DeviceOrientation drives local gaze; unsupported sensors fall back to idle animation. Sensor data is not uploaded. The Live badge requires relay/Gateway readiness and connected WebRTC. Audio playback uses the existing HTML audio element.
+## Structure
 
-## Requirements
+```text
+backend/
+  src/main.ts                  Relay entry point
+  src/app.ts                   HTTP and WebSocket composition
+  src/routes/                  Thin HTTP/WebSocket controllers
+  src/services/                Authentication, relay state, assets, Gateway, SDP
+  src/repositories/            Asset and local credential reads
+  src/services/container.ts    Shared relay service instances
+  src/connector/               Local connector entry point and transport
+  src/protocol.ts               Browser-safe wire types and runtime guards
+  test/                        Auth, protocol, real socket and HTTP regressions
+miniapp/
+  src/components/              Face, captions, connection, call controls
+  src/lib/hooks/               React lifecycle and caption state
+  src/lib/voice/               Call lifecycle, audio, events, structured closing
+  src/lib/face/                Animation and Telegram orientation
+  test/                        Voice lifecycle, tilt, closing, RTP regressions
+scripts/                       Workspace dev/build/check orchestration
+patches/                       Version-specific OpenClaw patch snapshots
+legacy/openclaw/               Historical installers, revisions and documentation
+```
 
-- Bun (build and runtime), Node.js (regression tests).
-- An OpenClaw installation providing the Talk RPCs and `gpt-live-1-codex` adapter used by this snapshot. This is not a standalone OpenAI API client; arbitrary/newer OpenClaw versions may not be compatible.
-- A Telegram bot with a menu-button Mini App, and a public HTTPS deployment.
-- nibrun CLI (`nib`) for the deployment instructions below.
+Backend imports use `#*` with `.ts`; frontend imports are relative. The frontend imports wire types and guards through `backend/protocol`. HTTP routes use Elysia schemas; native Bun WebSockets retain the original relay protocol. There is no bot polling or database: OpenClaw already owns bot interactions and conversation persistence.
 
-## Install and check
+## Requirements and configuration
+
+Use Bun 1.4.1 or newer. The Gateway must provide the Talk RPCs and `gpt-live-1-codex` adapter from the supplied snapshot; arbitrary newer OpenClaw versions may be incompatible. You also need a Telegram bot Mini App and a public HTTPS URL.
 
 ```sh
 bun install --frozen-lockfile
-bun run check
-bun run build
+cp backend/.env.example backend/.env
 ```
 
-The build embeds the UI and bundled face library in `dist/friday-miniapp`, a Linux x64 executable. Dependencies and the executable are intentionally not included in this source archive.
+Fill in `backend/.env`:
 
-## Configuration
+| Variable | Used by | Purpose |
+| --- | --- | --- |
+| `BRIDGE_SECRET` | Relay | Independently generated, high-entropy shared secret |
+| `TELEGRAM_BOT_ID` | Relay | Bot's numeric ID, without its token |
+| `TELEGRAM_ALLOWED_USER_ID` | Relay | Single allowed Telegram user |
+| `OPENCLAW_SESSION_KEY` | Relay | Existing OpenClaw agent/session route |
+| `VOICE_MODEL` | Relay | Defaults to `gpt-live-1-codex` |
+| `PORT` | Relay | Defaults to `NIBRUN_HTTP_PORT`, then `3000` |
+| `FRIDAY_MINIAPP_BRIDGE_SECRET` | Connector | Must match the relay secret |
+| `FRIDAY_MINIAPP_URL` | Connector | Public relay HTTP(S) URL |
+| `OPENCLAW_GATEWAY_URL` | Connector | Defaults to `ws://127.0.0.1:18789` |
+| `OPENCLAW_GATEWAY_TOKEN` | Connector | Optional explicit Gateway credential |
+| `OPENCLAW_CONFIG_PATH` | Connector | Optional path; defaults to `~/.openclaw/openclaw.json` |
 
-Copy `.env.example` to `.env` locally and fill in the values. Use an independently generated, high-entropy shared secret: server `BRIDGE_SECRET` and connector `FRIDAY_MINIAPP_BRIDGE_SECRET` must match. Never publish the `.env` file. The connector can read the local Gateway token from OpenClaw config; do not expose it to the browser or public relay.
+The connector reads its Gateway token from local configuration or the OpenClaw CLI when no token is supplied. Credentials never reach the frontend. The public `/api/config` endpoint exposes only the non-secret session route and voice model.
 
-This is a snapshot of Luca's personal app, not a generalized template. Before using another bot/account, edit `SESSION_KEY` in `src/web/index.html.txt` to the correct OpenClaw session route. Set `TELEGRAM_BOT_ID` and `TELEGRAM_ALLOWED_USER_ID` for that bot/user; the source retains the original non-secret identity defaults. Model choice is also in that HTML file. The voice is configured in OpenClaw, not overridden by the browser.
+For migration from the snapshot, move the old root `.env` to `backend/.env` and set `OPENCLAW_SESSION_KEY` to the route previously hardcoded in the HTML. The original bot and user defaults have been removed. The connector now requires an explicit shared secret; it no longer derives one from a bot token.
 
-Run the relay and connector as separate processes:
+## Run and verify
 
 ```sh
-bun run start
-# In a second terminal, with the connector environment configured:
-bun run connector
+bun dev                    # Relay plus Vite frontend
+bun run connector          # Separate process on the Gateway machine
+bun check:all              # Strict backend/frontend types and Biome
+bun test                   # Portable regressions and real local socket tests
+bun run build:local        # Host binary at backend/dist/app
+bun run build              # Linux x64 binary at backend/dist/app
 ```
 
-Serve over HTTPS and open through Telegram to supply valid signed `initData`. Opening in an ordinary browser displays the page but does not authenticate voice access. Microphone permission is required. Do not replace real authentication with mocked test data.
+Vite proxies `/api` and `/rpc` to the relay at port 3000. If you change the development relay port, update the proxy target in `miniapp/vite.config.ts`. Telegram requires HTTPS and signed launch data; a plain browser can preview the UI but cannot start a call. Register your public URL as the bot's Mini App menu button.
 
-## Deploy
+For a single-process local preview, build first, then run `bun start`. Build scripts embed Vite's content-hashed frontend assets in the relay binary. `miniapp/` remains removable: backend checks/builds still work, and no SPA fallback is served without an embedded index. The connector runs from source on the local Gateway machine; it is separate from the public relay binary.
+
+## Deployment
 
 ```sh
 bun run build
-nib login
-nib run ./dist/friday-miniapp --app YOUR_EXISTING_APP --port 3000
+nib run ./backend/dist/app --app YOUR_EXISTING_APP --port 3000
 ```
 
-Configure the relay environment on nibrun using its environment settings; a local `.env` file is not embedded in the binary. Set the connector's `FRIDAY_MINIAPP_URL` to the public URL, then run/restart the connector on the Gateway machine. Register that URL as the Telegram bot's Mini App menu button. `/healthz` reports relay, bridge and Gateway readiness (not proof of audible playback).
+Set relay variables on the host: local `.env` files are not compiled into the binary. Run the connector on the Gateway machine with its variables configured. `/healthz` reports relay, bridge and Gateway readiness. It does not prove audible playback or end-to-end voice latency. This repository does not install services, change your bot, or apply Gateway patches automatically.
 
-No systemd service, credentials, bot setup, account access, or OpenClaw installation is bundled. The existing connector keeps an outbound WebSocket open and may prevent the nibrun deployment sleeping.
+## Preserved behavior and OpenClaw patches
 
-## OpenClaw patches and historical scripts
+The orange bbot face, dark eyes, no mouth, eight-word captions, 2.4-second hold, 650 ms fade, optional Telegram tilt gaze, microphone processing, audio-element playback, mute/end controls, and structured farewell closing are preserved. Live status requires both relay/Gateway readiness and a connected WebRTC peer. Ending during startup cancels pending work and releases late microphone streams; disconnected RPCs reject immediately.
 
-`patches/responsive-merged/` contains the latest three-file merged responsiveness patch and its hash manifest. `patches/end-conversation/` and root-level `.original`, `.before-*`, `.patched`, installer and restart files preserve development history. They are **not additive interchangeable installers**: older installers can regress newer changes.
+`patches/responsive-merged/` retains the merged responsiveness patches and manifests. `patches/end-conversation/` retains the farewell-control patch. Their portable regression scripts live in `patches/tests/` and run through `bun test`.
 
-Do not run historical installers/restart scripts blindly. They target exact OpenClaw distribution filenames/hashes, contain original machine paths/service names and Telegram delivery routes, and some restart the Gateway. Inspect and adapt them first. For the original machine, `install-responsive-merged.sh` installs/verifies only and deliberately does not restart.
+`legacy/openclaw/` contains the original revision history, installer/restart scripts and README. These files are archival; their old relative paths and machine-specific paths have not been adapted for execution. Inspect and adapt them before use. Older patch installers can overwrite newer behavior. See [third-party notices](THIRD_PARTY_NOTICES.md) and `licenses/` for upstream licensing.
 
-`bun run check` runs portable TypeScript, tilt, follow-up-retention and merged-controller tests. Additional `test-close-merged.mjs` and `test-conversation-close.mjs` require the matching installed OpenClaw distribution; other tests are historical revision checks.
-
-## Important behavior and limits
-
-- Closing on a farewell uses an application-defined structured control request, not a native OpenAI emotion/hang-up event. Live choosing that request reliably remains unverified; the End button always remains available.
-- Cosmetic emotional expressions currently include simple transcript heuristics. They are not emotion detection and can misfire.
-- Simulated browser/sensor checks do not prove physical-phone sensor behavior, audio routing, or end-to-end voice latency.
-- Face assets use content-hashed URLs. Do not revert to a fixed script URL: the public CDN was observed caching JavaScript for four hours, causing HTML/module version mismatches.
-- Do not remove the error boundary around optional tilt startup; sensors must not block voice initialization.
-- This prototype does not include production rate limiting or a Telegram initData replay cache. Review before sharing access.
-
-## Included / excluded
-
-Included: source, lockfile, bundled browser asset, tests, patch manifests/snapshots, historical helper scripts, voice prompt, setup documentation, and a clean local Git history.
-
-Excluded: node_modules, compiled binary, process logs, private chat/memory files, real `.env` files, Gateway/bot credentials, and the surrounding workspace/repository history. This repository has no remote and has not been published to GitHub.
-
-## Third-party code
-
-bbot and OpenClaw packages/patch snapshots retain their respective upstream licensing. See `THIRD_PARTY_NOTICES.md`. No new blanket license is asserted over the bundled third-party code.
+Structured closing depends on a model-issued `end_conversation` control and silent output telemetry; transcripts are not classified as farewell commands. The End button always remains available. Cosmetic transcript expressions are heuristics. The app remains a single-user prototype without rate limiting or an init-data replay cache. Automated tests do not prove phone microphone/sensor behavior or compatibility with a particular live Gateway installation.

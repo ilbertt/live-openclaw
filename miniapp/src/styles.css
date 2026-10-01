@@ -1,0 +1,147 @@
+:root {
+  color-scheme: dark;
+  --bg: #140b08;
+  --accent: #ff6908;
+}
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--bg);
+  color: #fff8f2;
+}
+body {
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+.shell {
+  min-height: 100dvh;
+  max-width: 480px;
+  margin: auto;
+  padding: calc(24px + env(safe-area-inset-top)) 28px
+    calc(28px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+}
+.connection {
+  justify-self: center;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: #806a5d;
+  min-height: 16px;
+}
+.connection::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.connection[data-live="true"] {
+  color: #79b6a4;
+}
+main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 26px;
+  padding: 36px 0;
+}
+.transcript {
+  min-height: 44px;
+  max-width: 340px;
+  text-align: center;
+  font-size: 15px;
+  line-height: 1.5;
+  color: #e5cbb9;
+  opacity: 0;
+  transition: opacity 650ms ease;
+}
+.transcript.visible {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .transcript {
+    transition: none;
+  }
+}
+.stage {
+  width: min(70vw, 280px);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+}
+#fridayFace {
+  width: 100%;
+  height: 100%;
+  --face-skin: #ff6908;
+  --face-ink: #140b08;
+  --face-ring: transparent;
+}
+#fridayFace .bwf-ring {
+  display: none;
+}
+footer {
+  display: grid;
+  gap: 12px;
+}
+button {
+  appearance: none;
+  font: inherit;
+  cursor: pointer;
+  min-height: 56px;
+  border-radius: 18px;
+}
+.primary {
+  width: 100%;
+  border: 0;
+  background: var(--accent);
+  color: #140b08;
+  font-weight: 650;
+}
+.primary:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+button:focus-visible {
+  outline: 2px solid #fff8f2;
+  outline-offset: 4px;
+}
+.controls {
+  display: none;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.live .primary {
+  display: none;
+}
+.live .controls {
+  display: grid;
+}
+.secondary {
+  border: 1px solid #563021;
+  color: #fff8f2;
+  background: transparent;
+}
+.secondary.end {
+  background: #ff6908;
+  color: #140b08;
+  border: 0;
+}
+.status {
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #ffc09b;
+}
+[hidden],
+audio {
+  display: none;
+}

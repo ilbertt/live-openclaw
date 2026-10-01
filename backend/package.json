@@ -1,0 +1,25 @@
+{
+  "name": "backend",
+  "private": true,
+  "type": "module",
+  "imports": {
+    "#*": "./src/*"
+  },
+  "exports": {
+    "./protocol": "./src/protocol.ts"
+  },
+  "scripts": {
+    "start": "bun --env-file=.env src/main.ts",
+    "dev": "bun --env-file=.env --watch src/main.ts",
+    "connector": "bun --env-file=.env src/connector/main.ts",
+    "build": "bun run scripts/build.ts",
+    "check:types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@openclaw/gateway-client": "2026.9.4",
+    "elysia": "^1.4.30"
+  },
+  "devDependencies": {
+    "typescript": "catalog:"
+  }
+}
