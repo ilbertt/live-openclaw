@@ -15,7 +15,7 @@ Telegram Mini App ── audio/WebRTC ── OpenAI Live
 
 ## Requirements
 
-- Bun 1.4.1 or newer.
+- Bun 1.4.2 or newer.
 - An OpenClaw Gateway providing the Talk RPCs and `gpt-live-1-codex` adapter.
 - A Telegram bot with a Mini App menu button.
 - A public HTTPS host for the relay.
