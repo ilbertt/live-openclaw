@@ -13,7 +13,8 @@
     "dev": "bun --env-file=.env --watch src/main.ts",
     "connector": "bun --env-file=.env src/connector/main.ts",
     "build": "bun run scripts/build.ts",
-    "check:types": "tsc --noEmit"
+    "check:types": "tsc --noEmit",
+    "release:prepare": "bun run scripts/prepare-release.ts"
   },
   "dependencies": {
     "@openclaw/gateway-client": "2026.9.4",
