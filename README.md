@@ -1,5 +1,7 @@
 # Live OpenClaw
 
+[![Deploy on nibrun](https://nibrun.com/button.svg)](https://app.nibrun.com/deploy?name=live-openclaw&port=3000)
+
 A Telegram Mini App for voice calls with your OpenClaw agent.
 
 The relay runs on a public HTTPS host. The connector runs beside your OpenClaw Gateway and connects to the relay. You don't need to expose the Gateway to the internet.
@@ -15,19 +17,7 @@ cp backend/.env.example backend/.env
 
 Edit `backend/.env`. [`.env.example`](backend/.env.example) describes each setting.
 
-## Deploy
-
-```sh
-bun run build
-```
-
-Run `backend/dist/app` on your HTTPS host with the relay environment variables set. The binary includes the Mini App, but not your `.env` file.
-
-With nibrun:
-
-```sh
-nib run ./backend/dist/app --app YOUR_APP --port 3000
-```
+Deploy the relay on [nibrun.com](https://nibrun.com). The [`deploy-to-nibrun`](.agents/skills/deploy-to-nibrun/SKILL.md) skill is included.
 
 On the Gateway machine, configure the connector variables and run:
 
