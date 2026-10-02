@@ -13,13 +13,13 @@ it for its active voice session, deduplicates request IDs, observes audio quiet,
 and cancels on new user transcript or sustained local microphone activity.
 Missing output telemetry or prolonged playback leaves the session open.
 
-Install with `sudo bash ../../install-conversation-close.sh` from this directory,
-or use the absolute project path. Installer validates all source/destination
-hashes and syntax before touching installed files; timestamped backups are kept.
-It restarts Gateway and connector and checks recovery. Root is required because
-installed OpenClaw files are root-owned. An OpenClaw update may overwrite patches.
+The historical installer is in `legacy/openclaw/install-conversation-close.sh`.
+It contains machine-specific paths, restarts services, and uses the old repository
+layout. It is not a portable installation command. See [the patch overview](../README.md)
+for the relationship between these files and the later replacements.
 
-Run `node test-conversation-close.mjs` from the project root. It proves command
+The historical test is in `legacy/openclaw/test-conversation-close.mjs` and also
+uses paths from the original layout. It proves command
 transport/dispatch, no backend consult for valid commands, rejection of transcript
 matching, idempotence, interruption, playback gating, timeout, and stop/reset.
 Build and browser checks are separate. No spoken model-generation proof yet:
@@ -28,4 +28,4 @@ stop-speaking-only, and a last-second change of mind. Do not call model behavior
 verified based solely on mocked event tests. New calls are required after restart.
 
 ## Failed spoken test and backend fallback (2026-09-22)
-The live test delegated `Termina la conversazione` as prose, not the JSON action. The direct-model convention is therefore not reliable or a registered native tool. The revised controller gives the already-delegated model a scoped structured-response contract and consumes an exact close action from either result delivery path, without speaking the JSON. This adds backend latency when the direct path is missed. It is not keyword matching, nor a registered backend function tool. Controller tests use mocked model output; real intent selection remains unverified. Reinstall with the same installer to activate this revision.
+The live test delegated `Termina la conversazione` as prose, not the JSON action. The direct-model convention is therefore not reliable or a registered native tool. The revised controller gives the already-delegated model a scoped structured-response contract and consumes an exact close action from either result delivery path, without speaking the JSON. This adds backend latency when the direct path is missed. It is not keyword matching, nor a registered backend function tool. Controller tests use mocked model output; real intent selection remains unverified. The saved controller includes this revision.

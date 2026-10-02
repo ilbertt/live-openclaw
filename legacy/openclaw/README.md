@@ -1,5 +1,7 @@
-# Archived OpenClaw development files
+# Old OpenClaw files
 
-These are the unmodified root-level revision snapshots, historical tests, voice prompt, and installer/restart scripts from the original archive. The original setup notes are in `README.snapshot.md`.
+Earlier source copies, voice prompts, tests, and installer/restart scripts from the supplied archive. The app does not use these files. They remain here for reference; the original files are also in Git history.
 
-They are preserved for reference, not executed by the app or its checks. Moving them here intentionally separates them from maintained runtime code. Their original relative paths, absolute machine paths, service names and Telegram routes may require adjustment before execution. Do not apply an installer to a live Gateway without checking its version-specific manifest and expected files. The current patch snapshots remain at the repository root in `patches/`.
+The scripts contain paths and service names from the original machine. Their relative paths also predate this folder. They cannot be used as installation instructions for this project.
+
+The newer OpenClaw replacements are explained in [`patches/README.md`](../../patches/README.md). `README.snapshot.md` is the original archive's documentation.
