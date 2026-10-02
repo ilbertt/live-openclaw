@@ -37,4 +37,4 @@ bun run connector
 
 Set your bot's Mini App menu button to the relay URL. Open it in Telegram and tap Talk.
 
-Automatic hangup needs an OpenClaw modification; see [`patches/README.md`](patches/README.md). You can always end a call with the End button.
+Automatic hangup requires the Gateway to send an `end_conversation` control. The End button works without it.
