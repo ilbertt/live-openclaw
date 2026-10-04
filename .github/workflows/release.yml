@@ -17,11 +17,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: package.json
-
-      - run: bun install --frozen-lockfile
+      - uses: ./.github/actions/prepare
       - run: bun check:all
       - run: bun test
       - run: bun run build
