@@ -11,7 +11,7 @@ A Telegram Mini App for voice calls with your OpenClaw agent. The relay runs on 
 - A Telegram bot and your numeric Telegram user ID. Access is limited to that user.
 - An OpenClaw Gateway with Talk RPCs and the `gpt-live-1-codex` adapter.
 - A [nibrun](https://nibrun.com) account.
-- Bun 1.4.2+ on the Gateway machine to run the connector.
+- Bun on the Gateway machine to run the connector. Use the version pinned in [`package.json`](package.json).
 
 ### 1. Deploy the relay
 
