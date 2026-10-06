@@ -3,7 +3,7 @@ import type { AssetsRepository } from '#repositories/assets.repository.ts';
 
 const SECURITY_HEADERS = {
   'content-security-policy':
-    "default-src 'self'; script-src 'self' https://telegram.org; style-src 'self' 'unsafe-inline'; connect-src 'self' wss:; media-src 'self' blob:; img-src 'self' data:; frame-ancestors https://web.telegram.org https://*.telegram.org",
+    "default-src 'self'; script-src 'self' https://telegram.org; style-src 'self' 'unsafe-inline'; connect-src 'self' wss:; media-src 'self' blob: data:; img-src 'self' data:; frame-ancestors https://web.telegram.org https://*.telegram.org",
   'permissions-policy': 'microphone=(self)',
   'referrer-policy': 'no-referrer',
   'x-content-type-options': 'nosniff',

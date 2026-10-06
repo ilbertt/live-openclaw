@@ -12,6 +12,7 @@
     "start": "bun --env-file=.env src/main.ts",
     "dev": "bun --env-file=.env --watch src/main.ts",
     "connector": "bun --env-file=.env src/connector/main.ts",
+    "doctor": "bun --env-file=.env src/connector/doctor.ts",
     "build": "bun run scripts/build.ts",
     "check:types": "tsc --noEmit",
     "release:prepare": "bun run scripts/prepare-release.ts"

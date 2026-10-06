@@ -42,10 +42,15 @@ export function useVoice(caption: (text: string) => void) {
           }));
       });
     const end = () => controller.current?.end();
+    const retryAudio = () => {
+      void controller.current?.retryAudio();
+    };
     window.addEventListener('pagehide', end);
+    window.addEventListener('click', retryAudio);
     return () => {
       cancelled = true;
       window.removeEventListener('pagehide', end);
+      window.removeEventListener('click', retryAudio);
       controller.current?.dispose();
       controller.current = null;
       stopTilt();
@@ -61,8 +66,5 @@ export function useVoice(caption: (text: string) => void) {
     },
     end: () => controller.current?.end(),
     mute: () => controller.current?.toggleMute(),
-    enableSound: () => {
-      void controller.current?.enableSound();
-    },
   };
 }

@@ -7,7 +7,7 @@ export class GatewayService {
   private connecting: Promise<GatewayClient> | null = null;
   ready = false;
   constructor(
-    private readonly config: ConnectorConfig,
+    private readonly config: Pick<ConnectorConfig, 'gatewayUrl' | 'gatewayToken'>,
     private readonly credentials: OpenClawConfigRepository,
     private readonly onReady: (ready: boolean) => void,
     private readonly onEvent: (payload: Json) => void,

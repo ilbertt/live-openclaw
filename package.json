@@ -24,6 +24,7 @@
     "test": "bun test",
     "start": "bun --filter backend start",
     "connector": "bun --filter backend connector",
+    "doctor": "bun --filter backend doctor",
     "check": "bun run check:all && bun test"
   },
   "devDependencies": {
