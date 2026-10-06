@@ -4,13 +4,11 @@ export function CallControls({
   start,
   end,
   mute,
-  enableSound,
 }: {
   state: VoiceState;
   start: () => void;
   end: () => void;
   mute: () => void;
-  enableSound: () => void;
 }) {
   return (
     <>
@@ -35,11 +33,6 @@ export function CallControls({
           End
         </button>
       </div>
-      {state.soundBlocked && (
-        <button type="button" className="secondary" onClick={enableSound}>
-          Enable sound
-        </button>
-      )}
     </>
   );
 }

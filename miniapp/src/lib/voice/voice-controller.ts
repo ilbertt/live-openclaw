@@ -8,6 +8,8 @@ import { monitorMicrophone, waitForIce } from './media.ts';
 import { Playback } from './playback.ts';
 import { handleTalkEvent } from './talk-events.ts';
 import { INITIAL_VOICE_STATE, type VoiceState } from './voice-state.ts';
+
+const PLAYBACK_BLOCKED = 'Playback was blocked. Tap or click to retry audio.';
 export class VoiceController {
   private state = { ...INITIAL_VOICE_STATE };
   private peer: RTCPeerConnection | undefined;
@@ -33,7 +35,7 @@ export class VoiceController {
     this.playback = new Playback(audio, (blocked) =>
       this.update({
         soundBlocked: blocked,
-        ...(blocked ? { error: 'Tap Enable sound to hear Friday' } : {}),
+        ...(blocked ? { error: PLAYBACK_BLOCKED } : {}),
       }),
     );
     this.relay = new RelayClient(
@@ -70,6 +72,7 @@ export class VoiceController {
     const current = () => generation === this.generation && !this.disposed;
     this.update({ starting: true, error: '' });
     try {
+      this.playback.prime();
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       });
@@ -175,9 +178,16 @@ export class VoiceController {
     this.update({ muted });
     this.tg?.HapticFeedback?.selectionChanged();
   }
-  async enableSound(): Promise<void> {
+  async retryAudio(): Promise<void> {
+    if (!this.state.active || !this.playback.rejected) return;
+    const generation = this.generation;
     await this.playback.play();
-    if (!this.playback.rejected) this.update({ error: '' });
+    if (
+      generation === this.generation &&
+      !this.playback.rejected &&
+      this.state.error === PLAYBACK_BLOCKED
+    )
+      this.update({ error: '' });
   }
   dispose(): void {
     this.end();

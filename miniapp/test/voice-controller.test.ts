@@ -30,8 +30,11 @@ function fixture() {
   const sockets: FakeSocket[] = [],
     changes: VoiceState[] = [];
   const capture = deferred<MediaStream>();
+  const peers: EventTarget[] = [];
+  let play = () => Promise.resolve();
   let stopped = 0,
-    meterClosed = 0;
+    meterClosed = 0,
+    audioPlayed = 0;
   const track = {
     enabled: true,
     stop: () => {
@@ -52,6 +55,21 @@ function fixture() {
       }
     },
     navigator: { mediaDevices: { getUserMedia: () => capture.promise } },
+    RTCPeerConnection: class extends EventTarget {
+      iceGatheringState = 'complete';
+      localDescription = { sdp: 'offer' };
+      constructor() {
+        super();
+        peers.push(this);
+      }
+      addTrack() {}
+      async createOffer() {
+        return { type: 'offer', sdp: 'offer' };
+      }
+      async setLocalDescription() {}
+      async setRemoteDescription() {}
+      close() {}
+    },
     requestAnimationFrame: () => 1,
     cancelAnimationFrame: () => {},
     AudioContext: class {
@@ -85,7 +103,12 @@ function fixture() {
     offEvent: () => {},
   };
   const audio = {
+    play: () => {
+      audioPlayed++;
+      return play();
+    },
     pause: () => {},
+    removeAttribute: () => {},
     srcObject: null,
     muted: false,
     volume: 1,
@@ -111,6 +134,33 @@ function fixture() {
     stream,
     stops: () => stopped,
     meterClosed: () => meterClosed,
+    audioPlayed: () => audioPlayed,
+    setPlay: (next: () => Promise<void>) => {
+      play = next;
+    },
+    activate: async () => {
+      const starting = controller.start();
+      capture.resolve(stream);
+      await Bun.sleep(0);
+      const request = socket.sent.find((message) => message.method === 'talk.client.create');
+      socket.receive({
+        type: 'result',
+        id: request?.id,
+        result: {
+          voiceSessionId: 'active',
+          clientControl: { owner: 'gateway' },
+          offerUrl: '/plugins/openai/offer',
+          clientSecret: 'secret',
+        },
+      });
+      await Bun.sleep(0);
+      const offer = socket.sent.find((message) => message.type === 'offer');
+      socket.receive({ type: 'result', id: offer?.id, result: { sdp: 'answer' } });
+      await starting;
+    },
+    remoteTrack: () => {
+      peers[0]?.dispatchEvent(Object.assign(new Event('track'), { streams: [stream], track }));
+    },
     cleanup: () => {
       controller.dispose();
       for (const [key, descriptor] of descriptors) {
@@ -124,6 +174,7 @@ test('ending while microphone permission is pending stops the late stream', asyn
   const f = fixture();
   try {
     const starting = f.controller.start();
+    expect(f.audioPlayed()).toBe(1);
     f.controller.end();
     f.capture.resolve(f.stream);
     await starting;
@@ -174,6 +225,27 @@ test('bridge loss cancels capture and reports offline without restarting the cal
     expect(f.stops()).toBe(1);
     expect(f.changes.at(-1)?.ready).toBe(false);
     expect(f.changes.at(-1)?.error).toBe('Friday is offline');
+  } finally {
+    f.cleanup();
+  }
+});
+test('a late audio retry preserves the error from an ended call', async () => {
+  const f = fixture();
+  try {
+    await f.activate();
+    expect(f.changes.at(-1)?.active).toBe(true);
+    f.setPlay(() => Promise.reject(new Error('Autoplay blocked')));
+    f.remoteTrack();
+    await Promise.resolve();
+    expect(f.changes.at(-1)?.soundBlocked).toBe(true);
+    const pending = deferred<void>();
+    f.setPlay(() => pending.promise);
+    const retrying = f.controller.retryAudio();
+    f.controller.end('Connection lost');
+    pending.resolve();
+    await retrying;
+    expect(f.changes.at(-1)?.active).toBe(false);
+    expect(f.changes.at(-1)?.error).toBe('Connection lost');
   } finally {
     f.cleanup();
   }

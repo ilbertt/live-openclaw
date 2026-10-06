@@ -1,0 +1,19 @@
+[Unit]
+Description=Live OpenClaw private voice connector
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/ABSOLUTE/PATH/TO/live-openclaw/backend
+ExecStart=/ABSOLUTE/PATH/TO/bun --env-file=.env src/connector/main.ts
+Restart=on-failure
+RestartSec=2
+TimeoutStopSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+# If token resolution needs the CLI, include its directory in the service PATH.
+# PATH must also retain the usual system directories.
+
+[Install]
+WantedBy=default.target
