@@ -9,7 +9,7 @@ A Telegram Mini App for voice calls with your OpenClaw agent. The relay runs on 
 ### Requirements
 
 - A Telegram bot and your numeric Telegram user ID. Access is limited to that user.
-- An OpenClaw Gateway with Talk RPCs, the `gpt-live-1-codex` adapter, and `gateway-control-v1` WebRTC support. The model needs ChatGPT/Codex authentication in addition to local Gateway authentication. See [Gateway compatibility](docs/deployment.md#gateway-compatibility).
+- An OpenClaw Gateway with Talk RPCs, the `gpt-live-1-codex` adapter, and `gateway-control-v1` WebRTC support. The model needs ChatGPT/Codex authentication in addition to local Gateway authentication.
 - A [nibrun](https://nibrun.com) account.
 - Bun on the Gateway machine to run the connector. Use the version pinned in [`package.json`](package.json).
 
@@ -28,7 +28,7 @@ A Telegram Mini App for voice calls with your OpenClaw agent. The relay runs on 
 
 #### 1. Deploy the relay
 
-If a [release](https://github.com/ilbertt/live-openclaw/releases) exists, click **Deploy on nibrun** to deploy it, including the Mini App. Fill in the relay variables in the deploy form; [`.env.example`](backend/.env.example) describes each one. If there is no release, build and deploy from source using the [deployment guide](docs/deployment.md); the button cannot work without its release asset.
+Click **Deploy on nibrun** to deploy the latest release, including the Mini App. Fill in the relay variables in the deploy form; [`.env.example`](backend/.env.example) describes each one. To build from source, run `bun run build` and deploy `backend/dist/app` with the same relay variables.
 
 #### 2. Start the connector
 
@@ -60,4 +60,4 @@ Talk activates audio in the same tap; Mute/Unmute controls your microphone and E
 
 ### Automatic hangup
 
-Use **End** to hang up. The frontend can consume an experimental `end_conversation` control, but this repo does not register a model-selected close action. Saying goodbye alone does not guarantee hangup. See the [control contract](docs/deployment.md#automatic-hangup).
+Use **End** to hang up. Saying goodbye alone does not guarantee automatic hangup.
