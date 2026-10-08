@@ -9,26 +9,31 @@ A Telegram Mini App for voice calls with your OpenClaw agent. The relay runs on 
 ### Requirements
 
 - A Telegram bot and your numeric Telegram user ID. Access is limited to that user.
-- An OpenClaw Gateway with Talk RPCs, the `gpt-live-1-codex` adapter, and `gateway-control-v1` WebRTC support. The model needs ChatGPT/Codex authentication in addition to local Gateway authentication.
+- An OpenClaw Gateway with Talk RPCs, the `gpt-live-1-codex` adapter, and
+  `gateway-control-v1` WebRTC support. Tested with the published OpenClaw **2026.9.8**
+  package; basic calls require **no OpenClaw source patches** on that version.
+  The Gateway needs working ChatGPT/Codex authentication for this model, as well
+  as its own local Gateway authentication. An ordinary text-model setup alone is
+  not sufficient. See [compatibility and troubleshooting](docs/deployment.md).
 - A [nibrun](https://nibrun.com) account.
 - Bun on the Gateway machine to run the connector. Use the version pinned in [`package.json`](package.json).
 
 ### For agents
 
 1. Clone this repo on the Gateway machine. Use the Bun version in `package.json` and run `bun install --frozen-lockfile`.
-2. Read [`.env.example`](backend/.env.example). Confirm the existing bot ID, allowed Telegram user ID, and OpenClaw session key. Create `backend/.env` if needed and generate a bridge secret with `openssl rand -hex 32`.
-3. Run `bun run doctor --session` with `OPENCLAW_SESSION_KEY` set locally. This checks Gateway control negotiation and closes the probe; provider connectivity and audio still need a real call.
-4. Follow the [`deploy-to-nibrun`](.agents/skills/deploy-to-nibrun/SKILL.md) skill. Deploy the release binary on port 3000 with the relay variables set on the first deploy. If no release exists, `bun run build` produces `backend/dist/app`. For an existing relay, reuse `--app`.
-5. Set `FRIDAY_MINIAPP_URL` in `backend/.env` to the relay URL and `FRIDAY_MINIAPP_BRIDGE_SECRET` to the same secret. Keep the bot token and Gateway credentials local; the relay needs only the numeric bot ID.
-6. Run the connector under the Gateway machine's service manager so it survives restarts. A [systemd user-service template](scripts/live-openclaw-connector.service.example) is included.
-7. Check the relay's `/healthz`: `bridgeConnected` and `gatewayReady` must both be `true`. Set the bot's Mini App menu button to the relay URL.
-8. Ask the user to reopen the Mini App and test Talk, audible replies, Mute/Unmute, and End.
+2. Inspect existing Gateway configuration, connector services, bot menu, and any existing relay before changing them. Preserve their settings; do not create a duplicate deployment or overwrite provider credentials.
+3. Create `backend/.env` from [`backend/.env.example`](backend/.env.example) only if it does not already exist (keep it private and out of Git). Confirm the bot ID, allowed Telegram user ID, and **existing** OpenClaw session key; do not copy someone else's route. Generate an independent bridge secret, for example with `openssl rand -hex 32`.
+4. Run `bun run doctor --session` with `OPENCLAW_SESSION_KEY` set locally. This checks authenticated Talk RPCs and Gateway-owned WebRTC session negotiation, then closes the probe without opening a microphone. Provider connectivity and audio still need a real call. If it fails, fix Gateway compatibility/authentication **before deploying**. Do not install historical machine-specific patches.
+5. Follow the [`deploy-to-nibrun`](.agents/skills/deploy-to-nibrun/SKILL.md) skill. Check whether a release exists before using the deploy button. Deploy `live-openclaw-linux-x64` on port 3000, or run `bun run build` and deploy `backend/dist/app` if no release exists. Set **all relay variables** on the first deploy; a local `.env` is not uploaded automatically. Reuse `--app` for an existing deployment.
+6. Set `FRIDAY_MINIAPP_URL` in `backend/.env` to the relay URL and `FRIDAY_MINIAPP_BRIDGE_SECRET` to the same secret. Run the connector under the Gateway machine's service manager; a [systemd user-service template](scripts/live-openclaw-connector.service.example) is included.
+7. Check the relay's `/healthz`: `bridgeConnected` and `gatewayReady` must both be `true`. Configure the existing bot's Mini App menu button through Telegram's `setChatMenuButton` API or BotFather. Keep the bot token and Gateway credentials **on the Gateway machine**, never on the public relay. The relay needs only the numeric bot ID.
+8. Ask the user to reopen the Mini App and test Talk, audible replies, Mute/Unmute, and End. A green health endpoint is not proof of microphone access or audible playback. Automatic farewell hangup is **not included**; see below.
 
 ### For humans
 
 #### 1. Deploy the relay
 
-Click **Deploy on nibrun** to deploy the latest release, including the Mini App. Fill in the relay variables in the deploy form; [`.env.example`](backend/.env.example) describes each one. To build from source, run `bun run build` and deploy `backend/dist/app` with the same relay variables.
+If a [release](https://github.com/ilbertt/live-openclaw/releases) exists, click **Deploy on nibrun** to deploy it, including the Mini App. Fill in the relay variables in the deploy form; [`.env.example`](backend/.env.example) describes each one. If there is no release, build and deploy from source using the [deployment guide](docs/deployment.md); the button cannot work without its release asset.
 
 #### 2. Start the connector
 
@@ -58,6 +63,11 @@ Set your bot's Mini App menu button to the relay URL. Open it in Telegram, allow
 
 Talk activates audio in the same tap; Mute/Unmute controls your microphone and End disconnects the call.
 
-### Automatic hangup
+### Automatic hangup and patches
 
-Use **End** to hang up. Saying goodbye alone does not guarantee automatic hangup.
+**Saying goodbye does not currently guarantee automatic hangup.** Stock OpenClaw
+2026.9.8 does not emit the experimental `end_conversation` control this frontend
+can consume. The repo does not register a dedicated close tool with GPT-Live.
+Old prompt/JSON adapter patches were not reliable and are not installation
+requirements. Use **End** until a real model-selected close action is implemented
+and verified in a spoken call. See the [control contract](docs/deployment.md#automatic-hangup).

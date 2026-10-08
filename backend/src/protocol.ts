@@ -35,11 +35,13 @@ export type RelayMessage =
   | { type: 'bridge.state'; connected: boolean; gatewayReady: boolean }
   | { type: 'event'; event: 'talk.event'; payload: Json };
 export type BridgeMessage =
+  | { type: 'bridge.ping' }
   | { type: 'bridge.auth'; secret: string }
   | { type: 'bridge.status'; ready: boolean }
   | { type: 'client.reply'; clientId: string; payload: Reply }
   | { type: 'event'; payload: Extract<RelayMessage, { type: 'event' }> };
 export type ConnectorMessage =
+  | { type: 'bridge.pong' }
   | { type: 'bridge.ready' }
   | { type: 'client.open' | 'client.close'; clientId: string }
   | { type: 'client.message'; clientId: string; payload: ClientRequest };

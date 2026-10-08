@@ -37,6 +37,8 @@ test('real relay sockets authenticate, route RPC, reconnect bridge, and reject m
     bridge.send({ type: 'bridge.auth', secret: 'test-secret' });
     expect((await bridge.next()).type).toBe('bridge.ready');
     bridge.send({ type: 'bridge.status', ready: true });
+    bridge.send({ type: 'bridge.ping' });
+    expect((await bridge.next()).type).toBe('bridge.pong');
     client.send({ type: 'auth', initData: signedData() });
     const authenticated = await client.next();
     expect(authenticated.type).toBe('auth.ok');
