@@ -18,6 +18,7 @@ export class VoiceController {
   private generation = 0;
   private disposed = false;
   private cleanup: (() => void)[] = [];
+  private relayRecovery: ReturnType<typeof setTimeout> | undefined;
   private readonly relay: RelayClient;
   private readonly playback: Playback;
   private readonly closer = createConversationCloser({
@@ -42,12 +43,12 @@ export class VoiceController {
       tg?.initData || '',
       (state) => {
         this.update({ ready: state.ready, ...(state.error ? { error: state.error } : {}) });
-        if (!state.ready && (this.state.active || this.state.starting))
-          this.end('Friday is offline');
+        if (state.ready) this.clearRelayRecovery();
+        else this.waitForRelayRecovery();
       },
       (raw) => this.event(raw),
       () => {
-        if (this.state.active || this.state.starting) this.end('Connection lost');
+        this.waitForRelayRecovery();
       },
     );
     if (!tg?.initData) this.update({ error: 'Open this Mini App from Friday in Telegram.' });
@@ -56,6 +57,23 @@ export class VoiceController {
   private update(patch: Partial<VoiceState>): void {
     this.state = { ...this.state, ...patch };
     if (!this.disposed) this.changed(this.state);
+  }
+  private clearRelayRecovery(): void {
+    clearTimeout(this.relayRecovery);
+    this.relayRecovery = undefined;
+  }
+  private waitForRelayRecovery(): void {
+    if (!this.state.active && !this.state.starting) return;
+    if (this.state.starting) {
+      this.end('Friday is offline');
+      return;
+    }
+    if (this.relayRecovery) return;
+    // Audio uses WebRTC, independently of this reconnecting control socket.
+    this.relayRecovery = setTimeout(() => {
+      this.relayRecovery = undefined;
+      if (!this.state.ready) this.end('Friday is offline');
+    }, 10_000);
   }
   private event(raw: Json): void {
     handleTalkEvent(raw, this.sessionId, {
@@ -152,6 +170,7 @@ export class VoiceController {
       .catch(() => {});
   }
   end(error = ''): void {
+    this.clearRelayRecovery();
     this.generation++;
     const id = this.sessionId;
     this.sessionId = undefined;

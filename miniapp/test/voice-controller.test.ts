@@ -1,4 +1,4 @@
-import { expect, test } from 'bun:test';
+import { expect, jest, test } from 'bun:test';
 import type { FridayFace } from '../src/lib/face/friday-face.ts';
 import type { TelegramWebApp } from '../src/lib/telegram.ts';
 import { VoiceController } from '../src/lib/voice/voice-controller.ts';
@@ -56,6 +56,7 @@ function fixture() {
     },
     navigator: { mediaDevices: { getUserMedia: () => capture.promise } },
     RTCPeerConnection: class extends EventTarget {
+      connectionState = 'new';
       iceGatheringState = 'complete';
       localDescription = { sdp: 'offer' };
       constructor() {
@@ -67,8 +68,16 @@ function fixture() {
         return { type: 'offer', sdp: 'offer' };
       }
       async setLocalDescription() {}
-      async setRemoteDescription() {}
-      close() {}
+      async setRemoteDescription() {
+        this.connectionState = 'connected';
+        this.dispatchEvent(new Event('connectionstatechange'));
+      }
+      async getStats() {
+        return new Map();
+      }
+      close() {
+        this.connectionState = 'closed';
+      }
     },
     requestAnimationFrame: () => 1,
     cancelAnimationFrame: () => {},
@@ -141,8 +150,9 @@ function fixture() {
     activate: async () => {
       const starting = controller.start();
       capture.resolve(stream);
-      await Bun.sleep(0);
+      await Promise.resolve();
       const request = socket.sent.find((message) => message.method === 'talk.client.create');
+      expect(request).toBeDefined();
       socket.receive({
         type: 'result',
         id: request?.id,
@@ -153,8 +163,9 @@ function fixture() {
           clientSecret: 'secret',
         },
       });
-      await Bun.sleep(0);
+      for (let i = 0; i < 10; i++) await Promise.resolve();
       const offer = socket.sent.find((message) => message.type === 'offer');
+      expect(offer).toBeDefined();
       socket.receive({ type: 'result', id: offer?.id, result: { sdp: 'answer' } });
       await starting;
     },
@@ -184,6 +195,42 @@ test('ending while microphone permission is pending stops the late stream', asyn
     expect(f.socket.sent.some((message) => message.type === 'rpc')).toBe(false);
   } finally {
     f.cleanup();
+  }
+});
+test('a brief bridge reconnect preserves the active WebRTC call and pending answer', async () => {
+  jest.useFakeTimers();
+  const f = fixture();
+  try {
+    await f.activate();
+    f.socket.receive({ type: 'bridge.state', connected: false, gatewayReady: false });
+    jest.advanceTimersByTime(2000);
+    expect(f.changes.at(-1)?.active).toBe(true);
+    expect(f.stops()).toBe(0);
+    f.socket.receive({ type: 'bridge.state', connected: true, gatewayReady: true });
+    jest.advanceTimersByTime(11000);
+    expect(f.changes.at(-1)?.active).toBe(true);
+    expect(f.socket.sent.some((message) => message.method === 'talk.client.close')).toBe(false);
+  } finally {
+    f.cleanup();
+    jest.useRealTimers();
+  }
+});
+test('an unrecovered bridge outage ends the call after grace and stops capture', async () => {
+  jest.useFakeTimers();
+  const f = fixture();
+  try {
+    await f.activate();
+    f.socket.receive({ type: 'bridge.state', connected: false, gatewayReady: false });
+    jest.advanceTimersByTime(10001);
+    expect(f.changes.at(-1)?.active).toBe(false);
+    expect(f.stops()).toBe(1);
+    expect(f.changes.at(-1)?.error).toBe('Friday is offline');
+    const closing = f.socket.sent.find((message) => message.method === 'talk.client.close');
+    expect(closing).toBeDefined();
+    f.socket.receive({ type: 'result', id: closing?.id, result: {} });
+  } finally {
+    f.cleanup();
+    jest.useRealTimers();
   }
 });
 test('ending while Gateway creates a session closes a late session and microphone meter', async () => {

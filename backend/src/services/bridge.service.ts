@@ -25,7 +25,9 @@ export class BridgeService {
       return;
     }
     if (socket !== this.state.bridge) return;
-    if (message.type === 'bridge.status' && typeof message.ready === 'boolean') {
+    if (message.type === 'bridge.ping') {
+      this.state.sendBridge({ type: 'bridge.pong' });
+    } else if (message.type === 'bridge.status' && typeof message.ready === 'boolean') {
       this.state.gatewayReady = message.ready;
       this.state.broadcast();
     } else if (message.type === 'event' && isTalkMessage(message.payload)) {

@@ -6,6 +6,8 @@ export class ConnectorRuntime {
   private socket: WebSocket | null = null;
   private reconnect: ReturnType<typeof setTimeout> | null = null;
   private stopped = false;
+  private heartbeat: ReturnType<typeof setInterval> | null = null;
+  private lastPong = 0;
   constructor(
     private readonly config: ConnectorConfig,
     private readonly gateway: GatewayService,
@@ -24,11 +26,18 @@ export class ConnectorRuntime {
         socket.send(JSON.stringify({ type: 'bridge.auth', secret: this.config.bridgeSecret })),
       );
       socket.addEventListener('message', (event) => {
+        if (socket !== this.socket || this.stopped) return;
         void this.receive(String(event.data)).catch((error) =>
           console.error('Invalid relay message', error),
         );
       });
-      socket.addEventListener('close', () => this.scheduleReconnect());
+      socket.addEventListener('close', (event) => {
+        if (socket !== this.socket) return;
+        this.clearHeartbeat();
+        this.socket = null;
+        console.warn(`Friday Mini App bridge closed (${event.code}); reconnecting`);
+        this.scheduleReconnect();
+      });
       socket.addEventListener('error', () => socket.close());
     } catch (error) {
       console.error(error instanceof Error ? error.message : error);
@@ -38,8 +47,20 @@ export class ConnectorRuntime {
   private async receive(raw: string): Promise<void> {
     const message = parseObject(raw);
     if (message.type === 'bridge.ready') {
+      this.clearHeartbeat();
+      this.lastPong = Date.now();
+      this.heartbeat = setInterval(() => {
+        if (Date.now() - this.lastPong > 45_000) {
+          console.warn('Friday Mini App bridge heartbeat timed out');
+          this.socket?.close();
+          return;
+        }
+        this.send({ type: 'bridge.ping' });
+      }, 15_000);
       this.send({ type: 'bridge.status', ready: this.gateway.ready });
       console.log('Friday Mini App bridge connected');
+    } else if (message.type === 'bridge.pong') {
+      this.lastPong = Date.now();
     } else if (message.type === 'client.message' && typeof message.clientId === 'string') {
       const payload = await this.controller.handle(message.payload);
       this.send({ type: 'client.reply', clientId: message.clientId, payload });
@@ -52,8 +73,13 @@ export class ConnectorRuntime {
       void this.start();
     }, 2_000);
   }
+  private clearHeartbeat(): void {
+    if (this.heartbeat) clearInterval(this.heartbeat);
+    this.heartbeat = null;
+  }
   stop(): void {
     this.stopped = true;
+    this.clearHeartbeat();
     if (this.reconnect) clearTimeout(this.reconnect);
     this.socket?.close();
     this.gateway.stop();
